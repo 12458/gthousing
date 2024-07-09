@@ -48,8 +48,9 @@ const Dashboard = () => {
     '6 person': 6,
     '7 person': 7,
     'Quad': 4,
-    'Doubles': 2,
-    'Triples': 3,
+    'Double': 2,
+    'Triple': 3,
+    'Suite': 4,
   };
 
   const groupedAndFilteredRooms = useMemo(() => {
