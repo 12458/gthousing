@@ -69,7 +69,7 @@ const Dashboard = () => {
       if (!acc[room.BuildingName]) {
         acc[room.BuildingName] = {};
       }
-      const baseRoomNumber = room.RoomNumber.replace(/[ABCD]$/, '');
+      const baseRoomNumber = room.RoomNumber.replace(/[A-G]$/i, '');
       if (!acc[room.BuildingName][baseRoomNumber]) {
         acc[room.BuildingName][baseRoomNumber] = [];
       }
