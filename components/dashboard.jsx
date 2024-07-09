@@ -50,7 +50,7 @@ const Dashboard = () => {
     'Quad': 4,
     'Double': 2,
     'Triple': 3,
-    'Suite': 4,
+    'Suite': 2,
   };
 
   const groupedAndFilteredRooms = useMemo(() => {
