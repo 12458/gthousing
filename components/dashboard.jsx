@@ -9,8 +9,10 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [buildingFilter, setBuildingFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
   const [intervalDuration, setIntervalDuration] = useState(5); // Default interval duration in minutes
   const lastFetchTimeRef = useRef(0);
+
 
   const fetchRoomData = async () => {
     const now = Date.now();
@@ -53,16 +55,37 @@ const Dashboard = () => {
     'Suite': 2,
   };
 
+  /** @type {Record<string, "west" | "east">}*/
+  const locationMapping = {
+    "Armstrong": "West",
+    "Brown": "East",
+    "Caldwell (Explore)": "West",
+    "Fitten": "West",
+    "Folk (Explore)": "West",
+    "Freeman": "West",
+    "Fulmer": "West",
+    "Glenn": "East",
+    "Hanson": "East",
+    "Harrison": "East",
+    "Hefner": "West",
+    "Perry (GL Leadership)": "East",
+    "Smith": "East",
+    "Woodruff North": "West",
+    "Woodruff South": "West",
+  }
+
   const groupedAndFilteredRooms = useMemo(() => {
     if (!roomData.length) return {};
 
     const filtered = roomData.filter(room => {
-      const matchesSearch = Object.values(room).some(value => 
+      const matchesSearch = Object.values(room).some(value =>
         value.toString().toLowerCase().includes(searchTerm.toLowerCase())
       );
       const matchesBuilding = buildingFilter ? room.BuildingName === buildingFilter : true;
       const matchesGender = genderFilter ? room.Gender === genderFilter : true;
-      return matchesSearch && matchesBuilding && matchesGender;
+      const matchesLocation = locationFilter ? locationMapping[room.BuildingName] === locationFilter : true;
+      console.log(room.BuildingName, matchesLocation, locationFilter);
+      return matchesSearch && matchesBuilding && matchesGender && matchesLocation;
     });
 
     return filtered.reduce((acc, room) => {
@@ -76,7 +99,7 @@ const Dashboard = () => {
       acc[room.BuildingName][baseRoomNumber].push(room);
       return acc;
     }, {});
-  }, [roomData, searchTerm, buildingFilter, genderFilter]);
+  }, [roomData, searchTerm, buildingFilter, genderFilter, locationFilter]);
 
   const buildings = useMemo(() => [...new Set(roomData.map(room => room.BuildingName))], [roomData]);
   const genders = useMemo(() => [...new Set(roomData.map(room => room.Gender))], [roomData]);
@@ -140,6 +163,11 @@ const Dashboard = () => {
             <option key={gender} value={gender} className='bg-white dark:bg-slate-800'>{gender}</option>
           ))}
         </select>
+        <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className='p-2 border rounded bg-white dark:bg-slate-800'>
+          <option value="">All Locations</option>
+          <option key="West" value="West" className="bg-white dark:bg-slate-800">West</option>
+          <option value="East" className="bg-white dark:bg-slate-800">East</option>
+        </select>
         <div>
           <label className="block mb-1" htmlFor="interval">Refresh interval (min):</label>
           <input
@@ -157,14 +185,14 @@ const Dashboard = () => {
       <div className="space-y-6">
         {Object.entries(groupedAndFilteredRooms).map(([building, roomGroups]) => (
           <div key={building} className="border-t pt-4">
-            <h3 className="text-xl font-semibold mb-2">{building}</h3>
+            <h3 className="text-xl font-semibold mb-2">{building}: {locationMapping[building]}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {Object.entries(roomGroups).map(([baseRoomNumber, rooms]) => {
                 const availabilityPercentage = getAvailabilityPercentage(rooms);
                 const bgColor = getBackgroundColor(availabilityPercentage);
                 return (
-                  <div 
-                    key={baseRoomNumber} 
+                  <div
+                    key={baseRoomNumber}
                     className={`p-4 rounded-lg shadow ${bgColor}`}
                   >
                     <h4 className="font-bold text-lg mb-2">{baseRoomNumber}</h4>
