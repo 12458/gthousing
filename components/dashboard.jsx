@@ -57,22 +57,33 @@ const Dashboard = () => {
 
   /** @type {Record<string, "west" | "east">}*/
   const locationMapping = {
+    "North Avenue East": "East",
+    "North Avenue North": "East",
+    "North Avenue South": "East",
+    "North Avenue West": "East",
+    "Graduate Living Center": "West",
+    "Center Street North": "West",
+    "Center Street South": "West",
+    "Crecine": "West",
+    "Maulding": "West",
+    "Zbar (SSA)": "West",
+    "Nelson-Shell (ULC)": "West",
     "Armstrong": "West",
-    "Brown": "East",
+    Brown: "East",
     "Caldwell (Explore)": "West",
-    "Fitten": "West",
+    Fitten: "West",
     "Folk (Explore)": "West",
-    "Freeman": "West",
-    "Fulmer": "West",
-    "Glenn": "East",
-    "Hanson": "East",
-    "Harrison": "East",
-    "Hefner": "West",
+    Freeman: "West",
+    Fulmer: "West",
+    Glenn: "East",
+    Hanson: "East",
+    Harrison: "East",
+    Hefner: "West",
     "Perry (GL Leadership)": "East",
-    "Smith": "East",
+    Smith: "East",
     "Woodruff North": "West",
     "Woodruff South": "West",
-  }
+  };
 
   const groupedAndFilteredRooms = useMemo(() => {
     if (!roomData.length) return {};
