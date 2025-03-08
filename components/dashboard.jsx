@@ -12,7 +12,8 @@ const Dashboard = () => {
   const [locationFilter, setLocationFilter] = useState('');
   const [intervalDuration, setIntervalDuration] = useState(5); // Default interval duration in minutes
   const lastFetchTimeRef = useRef(0);
-
+  const [lastUpdated, setLastUpdated] = useState(null); // Store the timestamp from API
+  const [timeElapsed, setTimeElapsed] = useState('0s'); // Time elapsed since last update
 
   const fetchRoomData = async () => {
     const now = Date.now();
@@ -28,12 +29,48 @@ const Dashboard = () => {
       }
       const data = await response.json();
       setRoomData(data);
+
+      // Get the most recent LastUpdated timestamp from the data
+      if (data.length > 0) {
+        const timestamps = data.map(room => new Date(room.LastUpdated).getTime());
+        const latestTimestamp = new Date(Math.max(...timestamps));
+        setLastUpdated(latestTimestamp);
+      }
+
       setIsLoading(false);
     } catch (err) {
       setError(err.message);
       setIsLoading(false);
     }
   };
+
+  // Function to format the elapsed time
+  const formatTimeElapsed = (milliseconds) => {
+    const seconds = Math.floor(milliseconds / 1000);
+    if (seconds < 60) {
+      return `${seconds}s`;
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) {
+      return `${minutes}m ${seconds % 60}s`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+  };
+
+  // Update elapsed time counter every second
+  useEffect(() => {
+    if (!lastUpdated) return;
+
+    const timer = setInterval(() => {
+      const elapsed = new Date() - lastUpdated;
+      setTimeElapsed(formatTimeElapsed(elapsed));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [lastUpdated]);
 
   useEffect(() => {
     fetchRoomData(); // Initial fetch
@@ -95,7 +132,6 @@ const Dashboard = () => {
       const matchesBuilding = buildingFilter ? room.BuildingName === buildingFilter : true;
       const matchesGender = genderFilter ? room.Gender === genderFilter : true;
       const matchesLocation = locationFilter ? locationMapping[room.BuildingName] === locationFilter : true;
-      console.log(room.BuildingName, matchesLocation, locationFilter);
       return matchesSearch && matchesBuilding && matchesGender && matchesLocation;
     });
 
@@ -146,6 +182,24 @@ const Dashboard = () => {
   return (
     <div className="w-full max-w-6xl mx-auto p-4 shadow-lg rounded-lg">
       <h2 className="text-2xl font-bold mb-4">GT Housing Room Availability Dashboard</h2>
+
+      {/* Data freshness information */}
+      <div className="mb-4 flex items-center space-x-2">
+        <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium text-sm">
+          Last updated: {lastUpdated ? lastUpdated.toLocaleString() : 'Unknown'}
+        </div>
+        <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full font-medium text-sm flex items-center">
+          <span className="mr-1">Time since update:</span>
+          <span className="font-bold">{timeElapsed}</span>
+        </div>
+        <button
+          onClick={fetchRoomData}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors"
+        >
+          Refresh Now
+        </button>
+      </div>
+
       <div className="mb-4 flex flex-wrap gap-4">
         <input
           type="text"
