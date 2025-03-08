@@ -189,8 +189,8 @@ const Dashboard = () => {
           Last updated: {lastUpdated ? lastUpdated.toLocaleString() : 'Unknown'}
         </div>
         <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full font-medium text-sm flex items-center">
-          <span className="mr-1">Time since update:</span>
-          <span className="font-bold">{timeElapsed}</span>
+          <span className="mr-1 w-32 inline-block">Time since update:</span>
+          <span className="font-bold min-w-16 inline-block">{timeElapsed}</span>
         </div>
         <button
           onClick={fetchRoomData}
