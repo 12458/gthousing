@@ -1,20 +1,32 @@
 "use client";
 
+import { parseAsInteger, useQueryState } from "nuqs";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const Dashboard = () => {
   const [roomData, setRoomData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [buildingFilter, setBuildingFilter] = useState("");
-  const [genderFilter, setGenderFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useQueryState("search", {
+    defaultValue: "",
+  });
+  const [buildingFilter, setBuildingFilter] = useQueryState("building", {
+    defaultValue: "",
+  });
+  const [genderFilter, setGenderFilter] = useQueryState("gender", {
+    defaultValue: "",
+  });
+  const [locationFilter, setLocationFilter] = useQueryState("location", {
+    defaultValue: "",
+  });
   const [intervalDuration, setIntervalDuration] = useState(5); // Default interval duration in minutes
   const lastFetchTimeRef = useRef(0);
   const [lastUpdated, setLastUpdated] = useState(null); // Store the timestamp from API
   const [timeElapsed, setTimeElapsed] = useState("0s"); // Time elapsed since last update
-  const [minBeds, setMinBeds] = useState(0);
+  const [minBeds, setMinBeds] = useQueryState(
+    "minBeds",
+    parseAsInteger.withDefault(0),
+  );
 
   const fetchRoomData = async () => {
     const now = Date.now();
