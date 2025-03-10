@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const Dashboard = () => {
   const [roomData, setRoomData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [buildingFilter, setBuildingFilter] = useState('');
-  const [genderFilter, setGenderFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [buildingFilter, setBuildingFilter] = useState("");
+  const [genderFilter, setGenderFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [intervalDuration, setIntervalDuration] = useState(5); // Default interval duration in minutes
   const lastFetchTimeRef = useRef(0);
   const [lastUpdated, setLastUpdated] = useState(null); // Store the timestamp from API
-  const [timeElapsed, setTimeElapsed] = useState('0s'); // Time elapsed since last update
+  const [timeElapsed, setTimeElapsed] = useState("0s"); // Time elapsed since last update
+  const [minBeds, setMinBeds] = useState(0);
 
   const fetchRoomData = async () => {
     const now = Date.now();
@@ -23,16 +24,18 @@ const Dashboard = () => {
     lastFetchTimeRef.current = now;
 
     try {
-      const response = await fetch('https://proxy-housing.12458.workers.dev');
+      const response = await fetch("https://proxy-housing.12458.workers.dev");
       if (!response.ok) {
-        throw new Error('Failed to fetch room data');
+        throw new Error("Failed to fetch room data");
       }
       const data = await response.json();
       setRoomData(data);
 
       // Get the most recent LastUpdated timestamp from the data
       if (data.length > 0) {
-        const timestamps = data.map(room => new Date(room.LastUpdated).getTime());
+        const timestamps = data.map((room) =>
+          new Date(room.LastUpdated).getTime(),
+        );
         const latestTimestamp = new Date(Math.max(...timestamps));
         setLastUpdated(latestTimestamp);
       }
@@ -83,13 +86,13 @@ const Dashboard = () => {
   }, [intervalDuration]);
 
   const capacityMapping = {
-    '4 person': 4,
-    '6 person': 6,
-    '7 person': 7,
-    'Quad': 4,
-    'Double': 2,
-    'Triple': 3,
-    'Suite': 2,
+    "4 person": 4,
+    "6 person": 6,
+    "7 person": 7,
+    Quad: 4,
+    Double: 2,
+    Triple: 3,
+    Suite: 2,
   };
 
   /** @type {Record<string, "west" | "east">}*/
@@ -101,11 +104,11 @@ const Dashboard = () => {
     "Graduate Living Center": "West",
     "Center Street North": "West",
     "Center Street South": "West",
-    "Crecine": "West",
-    "Maulding": "West",
+    Crecine: "West",
+    Maulding: "West",
     "Zbar (SSA)": "West",
     "Nelson-Shell (ULC)": "West",
-    "Armstrong": "West",
+    Armstrong: "West",
     Brown: "East",
     "Caldwell (Explore)": "West",
     Fitten: "West",
@@ -125,31 +128,79 @@ const Dashboard = () => {
   const groupedAndFilteredRooms = useMemo(() => {
     if (!roomData.length) return {};
 
-    const filtered = roomData.filter(room => {
-      const matchesSearch = Object.values(room).some(value =>
-        value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = roomData.filter((room) => {
+      const matchesSearch = Object.values(room).some((value) =>
+        value.toString().toLowerCase().includes(searchTerm.toLowerCase()),
       );
-      const matchesBuilding = buildingFilter ? room.BuildingName === buildingFilter : true;
-      const matchesGender = genderFilter ? room.Gender === genderFilter : true;
-      const matchesLocation = locationFilter ? locationMapping[room.BuildingName] === locationFilter : true;
-      return matchesSearch && matchesBuilding && matchesGender && matchesLocation;
+      const matchesBuilding = buildingFilter
+        ? room.BuildingName === buildingFilter
+        : true;
+
+      const matchesGender = genderFilter
+        ? genderFilter === "Male"
+          ? room.Gender === "Male" || room.Gender === "DynamicGender"
+          : genderFilter === "Female"
+            ? room.Gender === "Female" || room.Gender === "DynamicGender"
+            : room.Gender === genderFilter
+        : true;
+
+      const matchesLocation = locationFilter
+        ? locationMapping[room.BuildingName] === locationFilter
+        : true;
+      return (
+        matchesSearch && matchesBuilding && matchesGender && matchesLocation
+      );
     });
 
-    return filtered.reduce((acc, room) => {
+    // First group the rooms
+    const grouped = filtered.reduce((acc, room) => {
       if (!acc[room.BuildingName]) {
         acc[room.BuildingName] = {};
       }
-      const baseRoomNumber = room.RoomNumber.replace(/[A-G]$/i, '');
+      const baseRoomNumber = room.RoomNumber.replace(/[A-G]$/i, "");
       if (!acc[room.BuildingName][baseRoomNumber]) {
         acc[room.BuildingName][baseRoomNumber] = [];
       }
       acc[room.BuildingName][baseRoomNumber].push(room);
       return acc;
     }, {});
-  }, [roomData, searchTerm, buildingFilter, genderFilter, locationFilter]);
 
-  const buildings = useMemo(() => [...new Set(roomData.map(room => room.BuildingName))], [roomData]);
-  const genders = useMemo(() => [...new Set(roomData.map(room => room.Gender))], [roomData]);
+    // Then filter by min beds if needed
+    if (minBeds > 0) {
+      Object.keys(grouped).forEach((building) => {
+        Object.keys(grouped[building]).forEach((roomNumber) => {
+          const rooms = grouped[building][roomNumber];
+          const availableBeds = rooms.length;
+          if (availableBeds < minBeds) {
+            delete grouped[building][roomNumber];
+          }
+        });
+
+        // Remove empty buildings
+        if (Object.keys(grouped[building]).length === 0) {
+          delete grouped[building];
+        }
+      });
+    }
+
+    return grouped;
+  }, [
+    roomData,
+    searchTerm,
+    buildingFilter,
+    genderFilter,
+    locationFilter,
+    minBeds,
+  ]);
+
+  const buildings = useMemo(
+    () => [...new Set(roomData.map((room) => room.BuildingName))],
+    [roomData],
+  );
+  const genders = useMemo(
+    () => [...new Set(roomData.map((room) => room.Gender))],
+    [roomData],
+  );
 
   const getAvailabilityString = (rooms) => {
     const totalBeds = rooms.reduce((sum, room) => {
@@ -170,23 +221,26 @@ const Dashboard = () => {
   };
 
   const getBackgroundColor = (availabilityPercentage) => {
-    if (availabilityPercentage >= 75) return 'bg-green-500';
-    if (availabilityPercentage >= 50) return 'bg-yellow-500';
-    if (availabilityPercentage >= 25) return 'bg-orange-500';
-    return 'bg-red-500';
+    if (availabilityPercentage >= 75) return "bg-green-500";
+    if (availabilityPercentage >= 50) return "bg-yellow-500";
+    if (availabilityPercentage >= 25) return "bg-orange-500";
+    return "bg-red-500";
   };
 
   if (isLoading) return <div className="text-center py-10">Loading...</div>;
-  if (error) return <div className="text-center py-10 text-red-500">Error: {error}</div>;
+  if (error)
+    return <div className="text-center py-10 text-red-500">Error: {error}</div>;
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4 shadow-lg rounded-lg">
-      <h2 className="text-2xl font-bold mb-4">GT Housing Room Availability Dashboard</h2>
+      <h2 className="text-2xl font-bold mb-4">
+        GT Housing Room Availability Dashboard
+      </h2>
 
       {/* Data freshness information */}
       <div className="mb-4 flex items-center space-x-2">
         <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium text-sm">
-          Last updated: {lastUpdated ? lastUpdated.toLocaleString() : 'Unknown'}
+          Last updated: {lastUpdated ? lastUpdated.toLocaleString() : "Unknown"}
         </div>
         <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full font-medium text-sm flex items-center">
           <span className="mr-1 w-32 inline-block">Time since update:</span>
@@ -214,8 +268,10 @@ const Dashboard = () => {
           className="p-2 border rounded bg-white dark:bg-slate-800"
         >
           <option value="">All Buildings</option>
-          {buildings.map(building => (
-            <option key={building} value={building}>{building}</option>
+          {buildings.map((building) => (
+            <option key={building} value={building}>
+              {building}
+            </option>
           ))}
         </select>
         <select
@@ -224,17 +280,45 @@ const Dashboard = () => {
           className="p-2 border rounded bg-white dark:bg-slate-800"
         >
           <option value="">All Genders</option>
-          {genders.map(gender => (
-            <option key={gender} value={gender} className='bg-white dark:bg-slate-800'>{gender}</option>
-          ))}
+          <option value="Male" className="bg-white dark:bg-slate-800">
+            Male (includes Dynamic)
+          </option>
+          <option value="Female" className="bg-white dark:bg-slate-800">
+            Female (includes Dynamic)
+          </option>
+          {genders
+            .filter((gender) => gender !== "Male" && gender !== "Female")
+            .map((gender) => (
+              <option
+                key={gender}
+                value={gender}
+                className="bg-white dark:bg-slate-800"
+              >
+                {gender}
+              </option>
+            ))}
         </select>
-        <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className='p-2 border rounded bg-white dark:bg-slate-800'>
+        <select
+          value={locationFilter}
+          onChange={(e) => setLocationFilter(e.target.value)}
+          className="p-2 border rounded bg-white dark:bg-slate-800"
+        >
           <option value="">All Locations</option>
-          <option key="West" value="West" className="bg-white dark:bg-slate-800">West</option>
-          <option value="East" className="bg-white dark:bg-slate-800">East</option>
+          <option
+            key="West"
+            value="West"
+            className="bg-white dark:bg-slate-800"
+          >
+            West
+          </option>
+          <option value="East" className="bg-white dark:bg-slate-800">
+            East
+          </option>
         </select>
         <div>
-          <label className="block mb-1" htmlFor="interval">Refresh interval (min):</label>
+          <label className="block mb-1" htmlFor="interval">
+            Refresh interval (min):
+          </label>
           <input
             type="number"
             id="interval"
@@ -242,44 +326,77 @@ const Dashboard = () => {
             value={intervalDuration}
             min="1"
             max="30"
-            onChange={(e) => setIntervalDuration(Math.max(1, Math.min(30, Number(e.target.value))))}
+            onChange={(e) =>
+              setIntervalDuration(
+                Math.max(1, Math.min(30, Number(e.target.value))),
+              )
+            }
+            className="p-2 border rounded bg-white dark:bg-slate-800 w-full"
+          />
+        </div>
+        <div>
+          <label className="block mb-1" htmlFor="minBeds">
+            Min. beds available:
+          </label>
+          <input
+            type="number"
+            id="minBeds"
+            placeholder="0+"
+            value={minBeds}
+            min="0"
+            onChange={(e) =>
+              setMinBeds(Math.max(0, parseInt(e.target.value) || 0))
+            }
             className="p-2 border rounded bg-white dark:bg-slate-800 w-full"
           />
         </div>
       </div>
       <div className="space-y-6">
-        {Object.entries(groupedAndFilteredRooms).map(([building, roomGroups]) => (
-          <div key={building} className="border-t pt-4">
-            <h3 className="text-xl font-semibold mb-2">{building}: {locationMapping[building]}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {Object.entries(roomGroups).map(([baseRoomNumber, rooms]) => {
-                const availabilityPercentage = getAvailabilityPercentage(rooms);
-                const bgColor = getBackgroundColor(availabilityPercentage);
-                return (
-                  <div
-                    key={baseRoomNumber}
-                    className={`p-4 rounded-lg shadow ${bgColor}`}
-                  >
-                    <h4 className="font-bold text-lg mb-2">{baseRoomNumber}</h4>
-                    <p className="font-semibold">{getAvailabilityString(rooms)}</p>
-                    <p>Gender: {rooms[0].Gender}</p>
-                    <p>Term: {rooms[0].Term}</p>
-                    <div className="mt-2">
-                      {rooms.map((room, index) => (
-                        <span key={index} className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1 mb-1">
-                          {room.RoomNumber.slice(-1)}
-                        </span>
-                      ))}
+        {Object.entries(groupedAndFilteredRooms).map(
+          ([building, roomGroups]) => (
+            <div key={building} className="border-t pt-4">
+              <h3 className="text-xl font-semibold mb-2">
+                {building}: {locationMapping[building]}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {Object.entries(roomGroups).map(([baseRoomNumber, rooms]) => {
+                  const availabilityPercentage =
+                    getAvailabilityPercentage(rooms);
+                  const bgColor = getBackgroundColor(availabilityPercentage);
+                  return (
+                    <div
+                      key={baseRoomNumber}
+                      className={`p-4 rounded-lg shadow ${bgColor}`}
+                    >
+                      <h4 className="font-bold text-lg mb-2">
+                        {baseRoomNumber}
+                      </h4>
+                      <p className="font-semibold">
+                        {getAvailabilityString(rooms)}
+                      </p>
+                      <p>Gender: {rooms[0].Gender}</p>
+                      <p>Term: {rooms[0].Term}</p>
+                      <div className="mt-2">
+                        {rooms.map((room, index) => (
+                          <span
+                            key={index}
+                            className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1 mb-1"
+                          >
+                            {room.RoomNumber.slice(-1)}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ),
+        )}
       </div>
     </div>
   );
 };
 
 export default Dashboard;
+
